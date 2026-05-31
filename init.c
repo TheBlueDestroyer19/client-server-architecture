@@ -8,12 +8,15 @@ int main() {
   sem_unlink("/full1");
   sem_unlink("/empty2");
   sem_unlink("/full2");
+  sem_unlink("/connection_slot");
 
 	sem_t *empty1 = sem_open("/empty1", O_CREAT, 0666, 1);
 	sem_t *full1 = sem_open("/full1", O_CREAT, 0666, 0);
 
 	sem_t *empty2 = sem_open("/empty2", O_CREAT, 0666, 1);
 	sem_t *full2 = sem_open("/full2", O_CREAT, 0666, 0);
+
+  sem_t *connection_slot=sem_open("/connection_slot",O_CREAT,0666,1);
 
 	if(empty1 == SEM_FAILED ||
 	   full1 == SEM_FAILED ||
@@ -28,6 +31,7 @@ int main() {
 	sem_close(full1);
 	sem_close(empty2);
 	sem_close(full2);
+  sem_close(connection_slot);
 
 	printf("IPC initialized.\n");
 

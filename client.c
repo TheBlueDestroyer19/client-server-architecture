@@ -2,14 +2,11 @@
 #include <string.h>
 #include <errno.h>
 #include <semaphore.h>
+
 #include "locks.h"
 
 STATUS_CODE send(char *msg, char *req, sem_t *empty1, sem_t *full1) {
-	if(sem_wait(empty1) == -1) {
-		if(errno == EINTR)
-			return FAILURE;
-		return FAILURE;
-	}
+	if(sem_wait(empty1) == -1) return FAILURE;
 
 	FILE *fptr = fopen(req, "w");
 
@@ -27,26 +24,23 @@ STATUS_CODE send(char *msg, char *req, sem_t *empty1, sem_t *full1) {
 	return SUCCESS;
 }
 
-STATUS_CODE client_init(char *req, char *res, sem_t *empty1, sem_t *full1, sem_t *empty2, sem_t *full2) {
+STATUS_CODE client_init(char *req_s, char *res, char *req_a, sem_t *empty1, sem_t *full1, sem_t *empty2, sem_t *full2) {
+	if(sem_wait(empty1) == -1) return FAILURE;
 
-	if(sem_wait(empty1) == -1)
-		return FAILURE;
-
-	FILE *fptr = fopen(req, "w");
+	FILE *fptr = fopen(req_s, "w");
 
 	if(fptr == NULL) {
 		sem_post(empty1);
 		return FAILURE;
 	}
 
-	fprintf(fptr,"%c",SYN);
+	fprintf(fptr, "%c", SYN);
 
 	fclose(fptr);
 
 	sem_post(full1);
 
-	if(sem_wait(full2) == -1)
-		return FAILURE;
+	if(sem_wait(full2) == -1) return FAILURE;
 
 	FILE *fptr2 = fopen(res, "r");
 
@@ -65,17 +59,16 @@ STATUS_CODE client_init(char *req, char *res, sem_t *empty1, sem_t *full1, sem_t
 
 	if(c == SYN) {
 
-		if(sem_wait(empty1) == -1)
-			return FAILURE;
+		if(sem_wait(empty1) == -1) return FAILURE;
 
-		fptr = fopen(req, "w");
+		fptr = fopen(req_a, "w");
 
 		if(fptr == NULL) {
 			sem_post(empty1);
 			return FAILURE;
 		}
 
-		fprintf(fptr,"%c",ACK);
+		fprintf(fptr, "%c", ACK);
 
 		fclose(fptr);
 
@@ -95,17 +88,28 @@ int main() {
 	sem_t *empty1 = sem_open("/empty1", 0);
 	sem_t *empty2 = sem_open("/empty2", 0);
 
+	sem_t *connection_slot = sem_open("/connection_slot", 0);
+
 	if(full1 == SEM_FAILED || full2 == SEM_FAILED ||
-	   empty1 == SEM_FAILED || empty2 == SEM_FAILED) {
+	   empty1 == SEM_FAILED || empty2 == SEM_FAILED ||
+	   connection_slot == SEM_FAILED) {
 
 		perror("sem_open");
 		return 1;
 	}
 
-	if(client_init("request", "response", empty1, full1, empty2, full2) == SUCCESS)
+	printf("Waiting for connection slot...\n");
+
+	if(sem_wait(connection_slot) == -1) {
+		perror("sem_wait");
+		goto End;
+	}
+
+	if(client_init("hand_request_s", "hand_response", "hand_request_a", empty1, full1, empty2, full2) == SUCCESS)
 		printf("Connected to the server\n");
 	else {
 		printf("Server connection failed!\n");
+		sem_post(connection_slot);
 		goto End;
 	}
 
@@ -115,12 +119,16 @@ int main() {
 
 		printf("Enter the message:\n");
 
-		fgets(msg,1024,stdin);
-    msg[strcspn(msg,"\n")]='\0';
+		if(fgets(msg, 1024, stdin) == NULL) continue;
+
+		msg[strcspn(msg, "\n")] = '\0';
+
 		STATUS_CODE sc = send(msg, "request", empty1, full1);
 
-    if(!strcmp(msg,EOF_MSG))
-      break;
+		if(!strcmp(msg, EOF_MSG)) {
+			sem_post(connection_slot);
+			break;
+		}
 
 		if(sc == SUCCESS)
 			printf("Message Sent\n");
@@ -131,6 +139,8 @@ int main() {
 	printf("\nDisconnecting from server...\n");
 
 End:
+
+	sem_close(connection_slot);
 
 	sem_close(empty1);
 	sem_close(full1);

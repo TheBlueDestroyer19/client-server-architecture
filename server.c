@@ -6,7 +6,10 @@
 
 #include "locks.h"
 
-
+/**
+ * The main code that acts as interface between socket and server
+ * Function to get the message sent by client
+ */
 STATUS_CODE getmsg(char *msg, char *req, sem_t *empty1, sem_t *full1) {
 	if(sem_wait(full1) == -1)
 		return FAILURE;
@@ -27,13 +30,14 @@ STATUS_CODE getmsg(char *msg, char *req, sem_t *empty1, sem_t *full1) {
 	return SUCCESS;
 }
 
-STATUS_CODE server_init(char *req, char *res, sem_t *empty1, sem_t *full1, sem_t *empty2, sem_t *full2) {
+//Handshake with client
+STATUS_CODE server_init(char *req_s, char *res, char* req_a, sem_t *empty1, sem_t *full1, sem_t *empty2, sem_t *full2) {
 	char c;
 
 	if(sem_wait(full1) == -1)
 		return FAILURE;
 
-	FILE *fptr = fopen(req, "r");
+	FILE *fptr = fopen(req_s, "r");
 
 	if(fptr == NULL) {
 		sem_post(empty1);
@@ -67,7 +71,7 @@ STATUS_CODE server_init(char *req, char *res, sem_t *empty1, sem_t *full1, sem_t
 		if(sem_wait(full1) == -1)
 			return FAILURE;
 
-		fptr = fopen(req, "r");
+		fptr = fopen(req_a, "r");
 
 		if(fptr == NULL) {
 			sem_post(empty1);
@@ -86,7 +90,6 @@ STATUS_CODE server_init(char *req, char *res, sem_t *empty1, sem_t *full1, sem_t
 		return FAILURE;
 	}
 
-	fprintf(fptr2,"%c", ACK);
 
 	fclose(fptr2);
 
@@ -108,7 +111,7 @@ int main() {
 
 		printf("Waiting for client...\n");
 
-		STATUS_CODE start =server_init("request","response",empty1,full1,empty2,full2);
+		STATUS_CODE start =server_init("hand_request_s","hand_response","hand_request_a",empty1,full1,empty2,full2);
 
 		if(start != SUCCESS) {
 			printf("Connection unsuccessful.\n");
