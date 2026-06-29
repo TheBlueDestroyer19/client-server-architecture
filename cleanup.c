@@ -1,5 +1,5 @@
 #include "../include/ipc.h"
 
 int main() {
-	return ipc_init();
+	return ipc_cleanup();
 }
