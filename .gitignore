@@ -1,6 +1,14 @@
+#token files
 token
+
+#executables
 cleanup
 init
 client
 server
-libipc.a
+
+#object files
+*.o 
+
+#static libraries
+*.a
