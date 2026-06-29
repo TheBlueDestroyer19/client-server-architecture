@@ -1,1 +1,6 @@
 token
+cleanup
+init
+client
+server
+libipc.a
